@@ -79,7 +79,7 @@ jobs:
               curl -s -d "OCI Config Error - Check logs." "https://ntfy.sh{{ secrets.NTFY_TOPIC }}"
               exit 1
             else
-              echo "Out of capacity in Toronto AD-1, retrying shortly..."
+              echo "Out of capacity in Toronto AD-1, retrying shortly...."
             fi
             
             sleep 20 # Har 20 seconds baad check karega
