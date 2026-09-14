@@ -31,7 +31,7 @@ jobs:
         run: |
           EXISTING=$(oci compute instance list \
             --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
-            --display-name "autoelever-server" \
+            --display-name "hermes-agent" \
             --lifecycle-state "RUNNING" \
             --query "data[0].id" --raw-output 2>/dev/null || echo "")
           if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
