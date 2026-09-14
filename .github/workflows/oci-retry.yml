@@ -40,39 +40,47 @@ jobs:
             echo "already_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Attempt launch
+      - name: Attempt launch (Maximized Loop)
         if: steps.check.outputs.already_exists == 'false'
         run: |
           echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/ssh_key.pub
           echo '{"ocpus": 2, "memoryInGBs": 12}' > ~/shape_config.json
 
-          AD=$(oci iam availability-domain list \
-            --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
-            --query "data[0].name" --raw-output)
+          # Toronto ka exact AD fixed kar diya kyunki yahan ek hi AD hai
+          AD="pgyA:CA-TORONTO-1-AD-1"
+          END_TIME=$((SECONDS + 240)) 
 
-          set +e
-          OUTPUT=$(oci compute instance launch \
-            --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
-            --availability-domain "$AD" \
-            --shape "VM.Standard.A1.Flex" \
-            --shape-config file://~/shape_config.json \
-            --image-id "${{ secrets.OCI_IMAGE_ID }}" \
-            --boot-volume-size-in-gbs 100 \
-            --subnet-id "${{ secrets.OCI_SUBNET_ID }}" \
-            --ssh-authorized-keys-file ~/ssh_key.pub \
-            --display-name "autoelever-server" \
-            --assign-public-ip true \
-            --wait-for-state RUNNING 2>&1)
-          EXIT_CODE=$?
-          set -e
+          echo "Starting optimized capacity grabber for Toronto AD-1..."
+          
+          while [ $SECONDS -lt $END_TIME ]; do
+            echo "Trying to launch in AD: $AD..."
+            
+            set +e
+            OUTPUT=$(oci compute instance launch \
+              --compartment-id "${{ secrets.OCI_COMPARTMENT_ID }}" \
+              --availability-domain "$AD" \
+              --shape "VM.Standard.A1.Flex" \
+              --shape-config file://~/shape_config.json \
+              --image-id "${{ secrets.OCI_IMAGE_ID }}" \
+              --boot-volume-size-in-gbs 190 \
+              --subnet-id "${{ secrets.OCI_SUBNET_ID }}" \
+              --ssh-authorized-keys-file ~/ssh_key.pub \
+              --display-name "hermes-agent" \
+              --assign-public-ip true 2>&1)
+            EXIT_CODE=$?
+            set -e
 
-          echo "$OUTPUT"
-
-          if [ $EXIT_CODE -eq 0 ]; then
-            curl -s -d "OCI A1.Flex instance is UP - go check the console!" "https://ntfy.sh/${{ secrets.NTFY_TOPIC }}"
-          elif echo "$OUTPUT" | grep -qE "NotAuthenticated|InvalidParameter|does not exist|Forbidden|NotAuthorized"; then
-            curl -s -d "OCI script hit a config error - check the GitHub Actions log." "https://ntfy.sh/${{ secrets.NTFY_TOPIC }}"
-            exit 1
-          else
-            echo "Out of capacity or transient error, will retry on next scheduled run."
-          fi
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "SUCCESS! Instance created."
+              curl -s -d "Hermes Agent Server is UP in Toronto! 🎉" "https://ntfy.sh{{ secrets.NTFY_TOPIC }}"
+              exit 0
+            elif echo "$OUTPUT" | grep -qE "NotAuthenticated|InvalidParameter|Forbidden|NotAuthorized"; then
+              echo "Config Error: $OUTPUT"
+              curl -s -d "OCI Config Error - Check logs." "https://ntfy.sh{{ secrets.NTFY_TOPIC }}"
+              exit 1
+            else
+              echo "Out of capacity in Toronto AD-1, retrying shortly..."
+            fi
+            
+            sleep 20 # Har 20 seconds baad check karega
+          done
