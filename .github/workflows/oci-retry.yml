@@ -74,7 +74,7 @@ jobs:
               echo "SUCCESS! Instance created."
               curl -s -d "Hermes Agent Server is UP in Toronto! 🎉" "https://ntfy.sh{{ secrets.NTFY_TOPIC }}"
               exit 0
-            elif echo "$OUTPUT" | grep -qE "NotAuthenticated|InvalidParameter|Forbidden|NotAuthorized"; then
+            elif echo "$OUTPUT" | grep -qE "NotAuthenticated|InvalidParameter|Forbidden|NotAuthorized|NotAuthorizedOrNotFound"; then
               echo "Config Error: $OUTPUT"
               curl -s -d "OCI Config Error - Check logs." "https://ntfy.sh{{ secrets.NTFY_TOPIC }}"
               exit 1
